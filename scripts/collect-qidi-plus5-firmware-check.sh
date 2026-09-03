@@ -88,6 +88,8 @@ ensure_root() {
 
 ensure_root
 
+printf 'Starting QIDI Plus 5 collection. This may take several minutes.\n'
+
 root_path() {
   if [ "$ROOT" = "/" ]; then
     printf '/%s' "${1#/}"
@@ -332,7 +334,8 @@ done
 if [ "$ROOT" = "/" ] && [ -d /proc ]; then
   for executable_link in /proc/[0-9]*/exe; do
     target=$(readlink "$executable_link" 2>/dev/null || true)
-    case "$target" in
+    target_name=$(basename "$target")
+    case "$target_name" in
       *[Qq][Ii][Dd][Ii]*|*[Xx][Ii][Nn][Dd][Ii]*|*[Mm][Kk][Ss][Cc][Ll][Ii][Ee][Nn][Tt]*)
         [ -f "$target" ] && printf '%s\n' "$target" >> "$CLIENT_LIST"
         ;;
@@ -345,13 +348,16 @@ CLIENT_METADATA_RAW="$WORK_DIR/client-candidates.raw"
 : > "$CLIENT_METADATA_RAW"
 CLIENT_INDEX=0
 BINARY_BYTES_INCLUDED=0
-MAX_INCLUDED_BINARY_BYTES=73400320
+# The current Plus 5 client is about 90 MB. Keep enough headroom for it while
+# bounding the amount of vendor binary data included in one collection.
+MAX_INCLUDED_BINARY_BYTES=134217728
 while IFS= read -r client; do
   [ -r "$client" ] || continue
   CLIENT_INDEX=$((CLIENT_INDEX + 1))
   client_name=$(basename "$client" | tr -c 'A-Za-z0-9._-' '_')
   digest=$(sha256_file "$client")
-  size=$(wc -c < "$client" 2>/dev/null || echo unknown)
+  size=$(wc -c < "$client" 2>/dev/null | tr -d '[:space:]' || echo unknown)
+  printf 'Inspecting candidate client: %s (%s bytes)\n' "$(display_path "$client")" "$size"
   evidence_name=$(printf '%02d-%s-%s.txt' "$CLIENT_INDEX" "$client_name" "${digest:0:16}")
 
   {
@@ -438,6 +444,7 @@ if [ -n "$UPLOAD_URL" ]; then
   split -b 7340032 -d -a 4 "$SUBMISSION_FILE" "$CHUNK_DIR/part-"
   CHUNKS=("$CHUNK_DIR"/part-*)
   PART_COUNT=${#CHUNKS[@]}
+  printf 'Uploading collection in %s part(s).\n' "$PART_COUNT"
 
   for index in "${!CHUNKS[@]}"; do
     chunk=${CHUNKS[$index]}
@@ -468,6 +475,11 @@ if [ -n "$UPLOAD_URL" ]; then
 
     if ! curl --config "$CURL_CONFIG" --upload-file "$chunk" --output "$UPLOAD_RESPONSE"; then
       echo "Upload failed on part $PART_NUMBER of $PART_COUNT. Local result files were retained." >&2
+      if [ -s "$UPLOAD_RESPONSE" ]; then
+        printf 'Server response: ' >&2
+        tr '\n' ' ' < "$UPLOAD_RESPONSE" >&2
+        printf '\n' >&2
+      fi
       exit 1
     fi
     printf 'Uploaded part %s of %s.\n' "$PART_NUMBER" "$PART_COUNT"
