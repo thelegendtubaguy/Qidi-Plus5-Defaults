@@ -1,0 +1,32 @@
+name: Test Firmware Sync
+
+on:
+  pull_request:
+    paths:
+      - ".github/scripts/has-qidi-plus5-sync-changes.sh"
+      - ".github/scripts/reconcile-qidi-plus5-line-endings.py"
+      - ".github/scripts/sync-qidi-plus5-configs.sh"
+      - ".github/workflows/check-qidi-plus5-firmware.yml"
+      - ".github/workflows/test-firmware-sync.yml"
+      - "tests/test-sync-qidi-plus5-configs.sh"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/scripts/has-qidi-plus5-sync-changes.sh"
+      - ".github/scripts/reconcile-qidi-plus5-line-endings.py"
+      - ".github/scripts/sync-qidi-plus5-configs.sh"
+      - ".github/workflows/check-qidi-plus5-firmware.yml"
+      - ".github/workflows/test-firmware-sync.yml"
+      - "tests/test-sync-qidi-plus5-configs.sh"
+  workflow_dispatch:
+
+jobs:
+  test-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Run synthetic firmware sync tests
+        run: bash tests/test-sync-qidi-plus5-configs.sh

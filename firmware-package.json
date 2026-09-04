@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "soc_version": "01.01.01.06",
+  "firmware_archive": {
+    "filename": "QD_PLUS5_01.01.01.06_20260804_Release.zip",
+    "sha256": "94629da950e1b4ca32964c9de0b3e6e618ccd43aa132db98fcebe22e000a70e3"
+  },
+  "firmware_manifest": {
+    "sha256": "b5738d4234d2552818cafc5f845ce0d8aa44d237aa838c6b15a953ba45097005"
+  },
+  "soc_payload": {
+    "filename": "QD_PLUS5_SOC_01.01.01.06_20260804_Release_NA",
+    "sha256": "8366852c47d50617a4fd9f995d775d9cdfa954420a434fe811c45114683a6f15",
+    "region": "NA"
+  }
+}
