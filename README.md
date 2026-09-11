@@ -1,3 +1,5 @@
+![Tuba Makes](.github/images/tuba-makes-logo.png)
+
 # QIDI Plus 5 Firmware Reference
 
 This repository tracks package-owned files shipped in QIDI Plus 5 firmware.
