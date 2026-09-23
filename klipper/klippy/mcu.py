@@ -319,6 +319,9 @@ class MCU_endstop:
             "endstop_query_state oid=%c",
             "endstop_state oid=%c homing=%c next_clock=%u pin_value=%c",
             oid=self._oid, cq=cmd_queue)
+        if self._mcu.get_name() == 'mcu':
+            self._endstop_sync_reset_cmd = self._mcu.lookup_command(
+                "endstop_sync_reset oid=%c")
     def home_start(self, print_time, sample_time, sample_count, rest_time,
                    triggered=True):
         clock = self._mcu.print_time_to_clock(print_time)
@@ -355,6 +358,8 @@ class MCU_endstop:
             return 0
         params = self._query_cmd.send([self._oid], minclock=clock)
         return params['pin_value'] ^ self._invert
+    def endstop_sync_reset(self):
+        self._endstop_sync_reset_cmd.send([self._oid])
 
 class MCU_static_out:
     def __init__(self, mcu, pin_params):

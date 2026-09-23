@@ -84,6 +84,22 @@ class HomingMove:
         print_time = self.toolhead.get_last_move_time()
         endstop_triggers = []
         #初始化限位开关
+        # self.endstops[0][0].endstop_sync_reset()
+        sync_obj = self.endstops[0][0]
+        class_name = sync_obj.__class__.__name__
+        
+        # 尝试查找底层 MCU 对象
+        target_obj = sync_obj
+        if not hasattr(target_obj, 'endstop_sync_reset') and hasattr(target_obj, 'mcu_endstop'):
+            target_obj = target_obj.mcu_endstop
+        # 执行带有保险的重置
+        if hasattr(target_obj, 'endstop_sync_reset'):
+            logging.info("DEBUG: Sync Reset executing via class: %s (Target: %s)" % 
+                         (class_name, target_obj.__class__.__name__))
+            target_obj.endstop_sync_reset()
+        else:
+            logging.error("DEBUG: Sync Reset skipped! No method found in class: %s" % class_name)
+
         for mcu_endstop, name in self.endstops:
             rest_time = self._calc_endstop_rate(mcu_endstop, movepos, speed)
             # logging.info("WEIGHT_HOME:%s, %s" % (mcu_endstop, rest_time))
